@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+
+from configparser import ConfigParser
+from os import execlpe, path, environ, pathsep, _exit
+from sys import argv
+
+
+def preprocessEnv(env):
+    o = {}
+    if env:
+        for k, v in env.items():
+            o[k.upper()] = path.expandvars(path.expanduser(v))
+    return o
+
+
+def loadConfig():
+    curDir = path.dirname(path.realpath(__file__))
+    configFile = path.join(curDir, 'chenv.conf')
+    config = ConfigParser()
+    config.read(configFile)
+    return config
+
+
+def listEnvs(config):
+    names = set(config.keys())
+    try:
+        names.remove('DEFAULT')
+    except:
+        pass
+    return sorted(names)
+
+
+def loadEnv(config, name):
+    if name in config:
+        return preprocessEnv(config[name])
+    else:
+        for k, v in config.items():
+            if name in k.split('|'):
+                return preprocessEnv(v)
+        return {}
+
+
+def runBash(env):
+    execlpe('bash', 'bash', '--noprofile', env)
+
+
+def main(newEnv):
+    for varName, varValue in newEnv.items():
+        if varName == 'PATH':
+            np = environ.get('PATH')
+            if np:
+                np = varValue + pathsep + np
+            else:
+                np = varValue
+            environ['PATH'] = np
+        else:
+            environ[varName] = varValue
+    runBash(environ)
+
+
+if __name__ == '__main__':
+    config = loadConfig()
+    if len(argv) < 2:
+        print('environment name required')
+        print('')
+        print('available environments:')
+        print(listEnvs(config))
+        _exit(1)
+    newEnv = loadEnv(config, argv[1])
+    if not newEnv:
+        print('invalid environment name')
+        print('')
+        print('available environments:')
+        print(listEnvs(config))
+        _exit(1)
+    main(newEnv)
+
+
